@@ -6,6 +6,18 @@ A powerful Android audio routing utility that **captures audio from individual a
 
 ---
 
+## Root mode (this fork)
+
+On a rooted phone (Magisk, KernelSU, APatch) AudioPipe runs its `appops` and `input` commands through `su`. Wireless debugging, an ADB key and Wi-Fi are then not needed. The app asks for root on launch; the status line reads "Connected via root" once it is granted. Without root it falls back to the original wireless-debugging route below.
+
+Every push to `main` builds a debug APK with GitHub Actions and publishes it under Releases.
+
+This fork also improves TalkBack support: labelled pickers and sliders, section headings, spoken status changes, and a balance slider that reads left, center or right.
+
+Note: Android 11 or higher is required (`minSdk 30`).
+
+---
+
 ## ✨ Features
 
 - **Per-App Audio Capture** – Select any installed app and capture its audio output.

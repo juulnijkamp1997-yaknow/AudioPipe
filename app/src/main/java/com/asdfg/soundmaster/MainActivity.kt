@@ -26,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val PERMISSION_REQUEST_CODE = 1
+
 @RequiresApi(Build.VERSION_CODES.R)
 class MainActivity : AppCompatActivity() {
 
@@ -116,10 +118,12 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannel()
         bindViews()
         setupListeners()
+        balanceSeekBar.stateDescription = balanceDescription(0)
         loadApps()
         loadAudioOutputs()
-        checkAdbStatus()
-        requestPermissions()
+        if (!requestPermissions()) {
+            checkAdbStatus()
+        }
     }
 
     private fun bindViews() {
@@ -208,6 +212,7 @@ class MainActivity : AppCompatActivity() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 currentBalance = (progress - 100).toFloat()
                 balanceValue.text = currentBalance.toInt().toString()
+                balanceSeekBar.stateDescription = balanceDescription(currentBalance.toInt())
                 if (SoundMasterService.running) {
                     selectedApp?.let { pkg ->
                         getService()?.packageThreads?.get(pkg)?.setBalance(selectedOutput?.id ?: -1, currentBalance)
@@ -266,8 +271,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAdbStatus() {
-        if (shellExecutor.isSetUp) {
-            lifecycleScope.launch {
+        statusText.text = getString(R.string.checking_root)
+        lifecycleScope.launch {
+            // Root first: shows the Magisk prompt on first launch.
+            if (shellExecutor.checkRoot()) {
+                updateRootStatus()
+                return@launch
+            }
+
+            // No root: fall back to wireless debugging
+            if (shellExecutor.isSetUp) {
                 shellExecutor.discoverPort { port ->
                     if (port > 0) {
                         lifecycleScope.launch {
@@ -280,21 +293,36 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread { updateAdbStatus(false) }
                     }
                 }
+            } else {
+                updateAdbStatus(false)
             }
-        } else {
-            updateAdbStatus(false)
         }
     }
 
+    // Without this, TalkBack reads the centre position of the balance slider as "50 percent".
+    private fun balanceDescription(value: Int): String = when {
+        value < 0 -> getString(R.string.balance_left, -value)
+        value > 0 -> getString(R.string.balance_right, value)
+        else -> getString(R.string.balance_center)
+    }
+
+    private fun updateRootStatus() {
+        statusIndicator.setBackgroundResource(R.drawable.status_indicator_green)
+        statusText.text = getString(R.string.connected_root)
+        connectButton.text = getString(R.string.connected)
+        importKeyButton.visibility = View.GONE
+    }
+
     private fun updateAdbStatus(connected: Boolean) {
+        importKeyButton.visibility = View.VISIBLE
         if (connected) {
             statusIndicator.setBackgroundResource(R.drawable.status_indicator_green)
-            statusText.text = getString(R.string.connected)
-            connectButton.text = "Connected"
+            statusText.text = getString(R.string.connected_adb)
+            connectButton.text = getString(R.string.connected)
         } else {
             statusIndicator.setBackgroundResource(R.drawable.status_indicator_red)
             statusText.text = getString(R.string.disconnected)
-            connectButton.text = "Setup"
+            connectButton.text = getString(R.string.retry)
         }
     }
 
@@ -391,7 +419,8 @@ class MainActivity : AppCompatActivity() {
         manager.createNotificationChannel(channel)
     }
 
-    private fun requestPermissions() {
+    /** Returns true when a permission dialog is shown. */
+    private fun requestPermissions(): Boolean {
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.POST_NOTIFICATIONS
@@ -400,7 +429,23 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (needed.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, needed.toTypedArray(), 1)
+            ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERMISSION_REQUEST_CODE)
+            return true
+        }
+        return false
+    }
+
+    // The root check waits until the permission dialogs are answered, so the
+    // Magisk prompt is never hidden behind them while its timer runs.
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            checkAdbStatus()
         }
     }
 
