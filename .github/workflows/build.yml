@@ -30,7 +30,7 @@ jobs:
       - name: Build debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug -PbuildNumber=${{ github.run_number }} --no-daemon --stacktrace
 
       - name: Publish APK as a release
         env:
@@ -40,5 +40,5 @@ jobs:
           gh release create "build-${{ github.run_number }}" AudioPipe-root.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "AudioPipe root build ${{ github.run_number }}" \
+            --title "AudioPipe root 1.0.${{ github.run_number }}" \
             --notes "Debug build of commit ${{ github.sha }}"

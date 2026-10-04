@@ -218,16 +218,9 @@ class SoundMasterService : Service() {
         Log.d(TAG, "Started audio capture for $packageName -> ${device?.productName ?: "default"}")
     }
 
-    fun getAudioOutputDevices(): List<AudioDeviceInfo> {
-        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            .filter { 
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-            }
-    }
+    // Same list as the picker in MainActivity; a device missing here would
+    // silently fall back to the default output.
+    fun getAudioOutputDevices(): List<AudioDeviceInfo> = OutputDevices.list(audioManager)
 
     override fun onDestroy() {
         running = false

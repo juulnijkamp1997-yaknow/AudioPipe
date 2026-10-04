@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
@@ -21,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.asdfg.soundmaster.adb.ShellExecutor
+import com.asdfg.soundmaster.audio.OutputDevices
 import com.asdfg.soundmaster.audio.SoundMasterService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,10 +52,23 @@ class MainActivity : AppCompatActivity() {
 
     private var installedApps: List<ApplicationInfo> = emptyList()
     private var audioOutputs: List<AudioDeviceInfo> = emptyList()
+    private var outputLabels: List<String> = emptyList()
     private var selectedApp: String? = null
     private var selectedOutput: AudioDeviceInfo? = null
     private var currentVolume = 100f
     private var currentBalance = 0f
+
+    // Keeps the output list current while the app is open: headphones that
+    // connect or disconnect show up or disappear without reopening the app.
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            loadAudioOutputs()
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            loadAudioOutputs()
+        }
+    }
 
     private val mediaProjectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -121,6 +136,8 @@ class MainActivity : AppCompatActivity() {
         balanceSeekBar.stateDescription = balanceDescription(0)
         loadApps()
         loadAudioOutputs()
+        // A null handler delivers the callbacks on the main thread
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
         if (!requestPermissions()) {
             checkAdbStatus()
         }
@@ -171,19 +188,22 @@ class MainActivity : AppCompatActivity() {
         outputSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val newOutput = audioOutputs.getOrNull(position)
-                if (selectedOutput != newOutput) {
-                    val oldOutputId = selectedOutput?.id ?: -1
-                    selectedOutput = newOutput
-                    
-                    if (SoundMasterService.running) {
-                        selectedApp?.let { pkg ->
-                            val service = getService()
-                            service?.packageThreads?.get(pkg)?.let { thread ->
-                                val success = thread.switchOutputDevice(oldOutputId, newOutput)
-                                if (success) {
-                                    Toast.makeText(this@MainActivity, "Switched to ${newOutput?.productName}", Toast.LENGTH_SHORT).show()
-                                    updateServiceUI(true)
-                                }
+                val oldOutput = selectedOutput
+                selectedOutput = newOutput
+                // A refreshed list holds new objects for the same devices; compare ids,
+                // so a refresh never counts as the user picking another device.
+                if (oldOutput?.id == newOutput?.id) return
+
+                if (SoundMasterService.running) {
+                    selectedApp?.let { pkg ->
+                        getService()?.packageThreads?.get(pkg)?.let { thread ->
+                            if (thread.switchOutputDevice(oldOutput?.id ?: -1, newOutput)) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    getString(R.string.switched_to, outputLabel(newOutput)),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                updateServiceUI(true)
                             }
                         }
                     }
@@ -306,10 +326,12 @@ class MainActivity : AppCompatActivity() {
         else -> getString(R.string.balance_center)
     }
 
+    // The Retry button only shows when there is something to retry; a button
+    // labelled "Connected" that does nothing is confusing with TalkBack.
     private fun updateRootStatus() {
         statusIndicator.setBackgroundResource(R.drawable.status_indicator_green)
         statusText.text = getString(R.string.connected_root)
-        connectButton.text = getString(R.string.connected)
+        connectButton.visibility = View.GONE
         importKeyButton.visibility = View.GONE
     }
 
@@ -318,11 +340,12 @@ class MainActivity : AppCompatActivity() {
         if (connected) {
             statusIndicator.setBackgroundResource(R.drawable.status_indicator_green)
             statusText.text = getString(R.string.connected_adb)
-            connectButton.text = getString(R.string.connected)
+            connectButton.visibility = View.GONE
         } else {
             statusIndicator.setBackgroundResource(R.drawable.status_indicator_red)
             statusText.text = getString(R.string.disconnected)
             connectButton.text = getString(R.string.retry)
+            connectButton.visibility = View.VISIBLE
         }
     }
 
@@ -348,36 +371,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadAudioOutputs() {
-        audioOutputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            .filter {
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-            }
+        val devices = OutputDevices.list(audioManager)
+        val labels = OutputDevices.labels(this, devices)
 
-        val outputNames = audioOutputs.map { "${it.productName ?: getDeviceTypeName(it.type)}" }
+        // Nothing changed: leave the picker alone, so TalkBack focus is not disturbed
+        if (devices.map { it.id } == audioOutputs.map { it.id } && labels == outputLabels) return
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, outputNames)
+        val previousId = selectedOutput?.id
+        audioOutputs = devices
+        outputLabels = labels
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         outputSpinner.adapter = adapter
 
-        val btIndex = audioOutputs.indexOfFirst { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
-        if (btIndex >= 0) {
-            outputSpinner.setSelection(btIndex)
-        }
+        if (devices.isEmpty()) return
+        // Keep the device the user picked while it stays connected
+        val keptIndex = devices.indexOfFirst { it.id == previousId }
+        outputSpinner.setSelection(if (keptIndex >= 0) keptIndex else OutputDevices.defaultIndex(devices))
     }
 
-    private fun getDeviceTypeName(type: Int): String {
-        return when (type) {
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth"
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired Headphones"
-            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
-            AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
-            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker"
-            else -> "Unknown"
-        }
+    private fun outputLabel(device: AudioDeviceInfo?): String =
+        device?.let { OutputDevices.label(this, it) } ?: getString(R.string.output_default)
+
+    private fun appLabel(packageName: String?): String {
+        val info = installedApps.firstOrNull { it.packageName == packageName } ?: return packageName.orEmpty()
+        return packageManager.getApplicationLabel(info).toString()
     }
 
     private fun requestMediaProjection() {
@@ -398,7 +417,11 @@ class MainActivity : AppCompatActivity() {
     private fun updateServiceUI(running: Boolean) {
         if (running) {
             startStopButton.text = getString(R.string.stop)
-            serviceStatus.text = "Routing ${selectedApp} → ${selectedOutput?.productName ?: "Default"}"
+            serviceStatus.text = getString(
+                R.string.routing_status,
+                appLabel(selectedApp),
+                outputLabel(selectedOutput)
+            )
         } else {
             startStopButton.text = getString(R.string.start)
             serviceStatus.text = ""
@@ -452,10 +475,11 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateServiceUI(SoundMasterService.running)
-        loadAudioOutputs() 
+        loadAudioOutputs()
     }
 
     override fun onDestroy() {
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         super.onDestroy()
     }
 }

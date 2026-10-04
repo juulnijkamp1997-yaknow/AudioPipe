@@ -17,6 +17,7 @@
     <string name="connected_root">Connected via root</string>
     <string name="connected_adb">Connected via ADB</string>
     <string name="retry">Retry</string>
+    <string name="import_key">Import ADB key</string>
 
     <!-- Main UI -->
     <string name="select_app">Select App</string>
@@ -30,6 +31,24 @@
     <string name="stop">Stop</string>
     <string name="add_app">+ Add App</string>
     <string name="no_apps_selected">No apps selected</string>
+    <string name="routing_status">Routing %1$s to %2$s</string>
+    <string name="switched_to">Switched to %s</string>
+
+    <!-- Output devices -->
+    <string name="output_phone_speaker">Phone speaker</string>
+    <string name="output_type_bluetooth">Bluetooth</string>
+    <string name="output_type_ble_headset">Bluetooth LE headset</string>
+    <string name="output_type_ble_speaker">Bluetooth LE speaker</string>
+    <string name="output_type_hearing_aid">Hearing aid</string>
+    <string name="output_type_wired_headphones">Wired headphones</string>
+    <string name="output_type_wired_headset">Wired headset</string>
+    <string name="output_type_usb_headset">USB headset</string>
+    <string name="output_type_usb">USB audio</string>
+    <string name="output_type_line">Line out</string>
+    <string name="output_type_hdmi">HDMI</string>
+    <string name="output_type_dock">Dock</string>
+    <string name="output_type_other">Other output</string>
+    <string name="output_default">Default output</string>
     
     <!-- Service -->
     <string name="service_notification_title">SoundMaster Active</string>

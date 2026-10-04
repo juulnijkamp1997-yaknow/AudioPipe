@@ -67,22 +67,25 @@
                         android:layout_marginStart="8dp"
                         android:accessibilityLiveRegion="polite"
                         android:text="@string/disconnected"
-                        android:textColor="#AAAAAA" />
-
-                    <Button
-                        android:id="@+id/connectButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/retry"
-                        style="@style/Widget.Material3.Button.TonalButton" />
+                        android:textColor="#DDDDDD" />
                 </LinearLayout>
+
+                <!-- Below the status line, so large font sizes never squeeze the status text.
+                     Hidden while connected. -->
+                <Button
+                    android:id="@+id/connectButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/retry"
+                    style="@style/Widget.Material3.Button.TonalButton" />
 
                 <Button
                     android:id="@+id/importKeyButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Import Existing Key"
+                    android:text="@string/import_key"
                     style="@style/Widget.Material3.Button.TextButton" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -114,9 +117,10 @@
                 <Spinner
                     android:id="@+id/appSpinner"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:layout_marginTop="8dp"
-                    android:background="@android:color/darker_gray" />
+                    android:background="#333333" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -147,9 +151,10 @@
                 <Spinner
                     android:id="@+id/outputSpinner"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:layout_marginTop="8dp"
-                    android:background="@android:color/darker_gray" />
+                    android:background="#333333" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

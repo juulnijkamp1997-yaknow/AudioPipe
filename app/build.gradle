@@ -3,6 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// GitHub Actions passes -PbuildNumber=<run number>, so every build installs as a newer version
+def buildNumber = (project.findProperty('buildNumber') ?: '1').toString().toInteger()
+
 android {
     namespace 'com.asdfg.soundmaster'
     compileSdk 34
@@ -11,8 +14,8 @@ android {
         applicationId "com.asdfg.soundmaster"
         minSdk 30
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
 
         // NDK disabled for now
         // ndk {
