@@ -21,11 +21,11 @@
 
     <!-- Bluetooth speaker: keep TalkBack and notifications on the phone -->
     <string name="speaker_card_title">Bluetooth speaker</string>
-    <string name="keep_on_phone">Keep TalkBack and notifications on the phone</string>
-    <string name="keep_on_phone_summary">While a Bluetooth speaker is connected, TalkBack, notification sounds, ringtones and alarms stay on the phone speaker. Music still goes to the Bluetooth speaker.</string>
+    <string name="keep_on_phone">Speaker mode</string>
+    <string name="keep_on_phone_summary">For playing on a Bluetooth speaker. TalkBack, notification sounds, ringtones and alarms stay on the phone speaker. Apps no longer pause each other, so music on the speaker and a video on your phone can play at the same time. Calls still interrupt. Turning it on pauses what is playing once.</string>
     <string name="keep_on_phone_working">Applying…</string>
-    <string name="keep_on_phone_on">On. TalkBack and notifications stay on the phone.</string>
-    <string name="keep_on_phone_off">Off. All sound follows the Bluetooth speaker.</string>
+    <string name="keep_on_phone_on">On. TalkBack and notifications stay on the phone, and apps can play at the same time.</string>
+    <string name="keep_on_phone_off">Off. Everything follows the Bluetooth speaker, and a new app pauses the one playing.</string>
     <string name="keep_on_phone_failed">Did not work: %s</string>
     <string name="keep_on_phone_needs_root">Needs root access.</string>
     <string name="show_diagnostics">Show diagnostics</string>

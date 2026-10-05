@@ -21,7 +21,6 @@ object RootRouting {
     const val ACTION_KEEP_ON_PHONE = "keep-on-phone"
     const val ACTION_RELEASE = "release"
     private const val ACTION_STATUS = "status"
-    private const val ACTION_DEVICES = "devices"
 
     fun isKeepOnPhoneEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_KEEP_ON_PHONE, false)
@@ -32,15 +31,12 @@ object RootRouting {
             .apply()
     }
 
-    /**
-     * Runs a [RoutingHelper] command as root, or as [asUid] (through su) to see what a fresh
-     * process with that uid's permissions sees. Fails unless the helper reports "RESULT OK".
-     */
-    fun runHelper(context: Context, action: String, asUid: Int? = null): Result<String> {
+    /** Runs a [RoutingHelper] command as root. Fails unless the helper reports "RESULT OK". */
+    fun runHelper(context: Context, action: String): Result<String> {
         val apk = context.applicationInfo.sourceDir
         val command = "CLASSPATH='$apk' /system/bin/app_process /system/bin " +
             "${RoutingHelper::class.java.name} $action"
-        return su(command, asUid).mapCatching { output ->
+        return su(command).mapCatching { output ->
             val result = output.lineSequence().lastOrNull { it.startsWith("RESULT ") }
             if (result == "RESULT OK") output else throw RoutingException(result ?: "no result", output)
         }
@@ -73,24 +69,16 @@ object RootRouting {
             return@buildString
         }
 
-        // Same uid and permissions as the app, but a fresh process: tells apart a permission
-        // filter (Bluetooth missing here too) from a stale device list inside the app
-        appendLine("== Fresh process with the app's uid ==")
-        appendLine(
-            runHelper(context, ACTION_DEVICES, asUid = context.applicationInfo.uid)
-                .fold({ it }, { describe(it) }).trim()
-        )
-        appendLine()
-
         appendLine("== Root helper ==")
         appendLine(runHelper(context, ACTION_STATUS).fold({ it }, { describe(it) }).trim())
         appendLine()
 
-        appendLine("== Bluetooth offload ==")
+        appendLine("== Bluetooth offload and audio focus ==")
         appendLine(
             su(
                 "echo a2dp offload supported: \$(getprop ro.bluetooth.a2dp_offload.supported); " +
-                    "echo a2dp offload disabled: \$(getprop persist.bluetooth.a2dp_offload.disabled)"
+                    "echo a2dp offload disabled: \$(getprop persist.bluetooth.a2dp_offload.disabled); " +
+                    "echo multi audio focus: \$(settings get system multi_audio_focus_enabled)"
             ).fold({ it }, { describe(it) }).trim()
         )
         appendLine()
@@ -121,10 +109,8 @@ object RootRouting {
     /** One-off root shell command, for example an appops change. */
     fun runAsRoot(command: String): Result<String> = su(command)
 
-    private fun su(command: String, asUid: Int? = null): Result<String> = try {
-        // Magisk su: options first, then the user (a uid) to switch to
-        val suCommand = if (asUid == null) listOf("su", "-c", command) else listOf("su", "-c", command, asUid.toString())
-        val process = ProcessBuilder(suCommand).redirectErrorStream(true).start()
+    private fun su(command: String): Result<String> = try {
+        val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
         process.outputStream.close()
         val output = process.inputStream.bufferedReader().use { it.readText() }
         val exitCode = process.waitFor()

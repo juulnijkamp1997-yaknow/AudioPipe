@@ -25,7 +25,8 @@ import java.util.Map;
  *
  * Commands:
  *   keep-on-phone  play TalkBack, notifications, ringtones and alarms on the phone speaker,
- *                  also while a Bluetooth speaker is connected
+ *                  also while a Bluetooth speaker is connected, and let media apps play side
+ *                  by side instead of pausing each other
  *   release        undo keep-on-phone
  *   status         print the output devices and how each sound type is routed
  *   devices        print only the output devices this process can see
@@ -124,6 +125,17 @@ public final class RoutingHelper {
         if (failures > 0) {
             throw new IllegalStateException(failures + " of " + targets.size() + " strategies could not be changed");
         }
+
+        // Android normally lets only one media app hold audio focus: a second app that starts
+        // playing makes the first one pause. In multi-focus mode both keep playing, so music on
+        // the speaker and a video on the phone can run at the same time. Calls and ringtones
+        // still interrupt. Android saves this setting and restores it after a reboot.
+        setMultiAudioFocus(audio, true);
+    }
+
+    private static void setMultiAudioFocus(Object audio, boolean enabled) throws Exception {
+        method(audio, "setMultiAudioFocusEnabled", 1).invoke(audio, enabled);
+        System.out.println("apps keep playing side by side (multi audio focus): " + (enabled ? "on" : "off"));
     }
 
     private static void release() throws Exception {
@@ -144,6 +156,8 @@ public final class RoutingHelper {
                         + (result == AUDIO_SYSTEM_SUCCESS ? "ok" : "error " + result));
             }
         }
+        // Back to Android's normal rule. Media that is playing pauses once, as after unplugging headphones.
+        setMultiAudioFocus(audio, false);
     }
 
     /** Best effort: one failing section must not hide the others. */
