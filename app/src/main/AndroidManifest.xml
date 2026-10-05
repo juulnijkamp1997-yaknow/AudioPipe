@@ -17,6 +17,9 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <!-- Re-apply "keep TalkBack and notifications on the phone" after a reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -40,7 +43,15 @@
             android:name=".audio.SoundMasterService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
-            
+
+        <receiver
+            android:name=".audio.RoutingBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

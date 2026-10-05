@@ -19,13 +19,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Same debug signing key for every build, so a new APK installs as an
-      # update instead of needing an uninstall first.
-      - name: Reuse debug signing key
+      # One signing key for every build, so a new APK installs as an update.
+      # The key never goes into the repository: it lives in the Actions cache.
+      # A cache entry unused for seven days is deleted; the next build then makes a
+      # new key, and that one update needs an uninstall first.
+      - name: Restore signing key
+        id: signing-key
         uses: actions/cache@v5
         with:
-          path: ~/.android/debug.keystore
-          key: debug-keystore
+          path: signing/audiopipe.keystore
+          key: audiopipe-signing-key-v1
+
+      - name: Create signing key on first run
+        if: steps.signing-key.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p signing
+          keytool -genkeypair -noprompt \
+            -keystore signing/audiopipe.keystore -storetype PKCS12 \
+            -storepass audiopipe -keypass audiopipe -alias audiopipe \
+            -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=AudioPipe"
 
       - name: Build debug APK
         run: |

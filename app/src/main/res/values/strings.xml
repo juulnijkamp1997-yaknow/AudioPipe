@@ -19,6 +19,21 @@
     <string name="retry">Retry</string>
     <string name="import_key">Import ADB key</string>
 
+    <!-- Bluetooth speaker: keep TalkBack and notifications on the phone -->
+    <string name="speaker_card_title">Bluetooth speaker</string>
+    <string name="keep_on_phone">Keep TalkBack and notifications on the phone</string>
+    <string name="keep_on_phone_summary">While a Bluetooth speaker is connected, TalkBack, notification sounds, ringtones and alarms stay on the phone speaker. Music still goes to the Bluetooth speaker.</string>
+    <string name="keep_on_phone_working">Applying…</string>
+    <string name="keep_on_phone_on">On. TalkBack and notifications stay on the phone.</string>
+    <string name="keep_on_phone_off">Off. All sound follows the Bluetooth speaker.</string>
+    <string name="keep_on_phone_failed">Did not work: %s</string>
+    <string name="keep_on_phone_needs_root">Needs root access.</string>
+    <string name="show_diagnostics">Show diagnostics</string>
+    <string name="diagnostics_running">Collecting diagnostics…</string>
+    <string name="copy_diagnostics">Copy diagnostics</string>
+    <string name="diagnostics_copied">Diagnostics copied</string>
+    <string name="one_app_section_title">Send one app to another output</string>
+
     <!-- Main UI -->
     <string name="select_app">Select App</string>
     <string name="select_output">Output Device</string>

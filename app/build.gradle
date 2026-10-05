@@ -29,6 +29,21 @@ android {
         // }
     }
 
+    // The GitHub build keeps one signing key (created on its first run, then restored from the
+    // Actions cache), so each new APK installs as an update over the previous one.
+    // Without that file, Android's normal debug key is used.
+    signingConfigs {
+        debug {
+            def keystore = rootProject.file('signing/audiopipe.keystore')
+            if (keystore.exists()) {
+                storeFile keystore
+                storePassword 'audiopipe'
+                keyAlias 'audiopipe'
+                keyPassword 'audiopipe'
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false

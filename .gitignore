@@ -5,6 +5,11 @@ out/
 build/
 .gradle/
 
+# Signing key (lives in the GitHub Actions cache, never in the repository)
+signing/
+*.keystore
+*.jks
+
 # IDE files
 .idea/
 *.iml

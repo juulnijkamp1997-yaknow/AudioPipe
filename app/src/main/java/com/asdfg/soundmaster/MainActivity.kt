@@ -15,6 +15,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -23,7 +24,11 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.asdfg.soundmaster.adb.ShellExecutor
 import com.asdfg.soundmaster.audio.OutputDevices
+import com.asdfg.soundmaster.audio.RootRouting
 import com.asdfg.soundmaster.audio.SoundMasterService
+import com.google.android.material.materialswitch.MaterialSwitch
+import android.content.ClipData
+import android.content.ClipboardManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +54,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var balanceValue: TextView
     private lateinit var startStopButton: Button
     private lateinit var serviceStatus: TextView
+    private lateinit var keepOnPhoneSwitch: MaterialSwitch
+    private lateinit var keepOnPhoneStatus: TextView
+    private lateinit var diagnosticsButton: Button
+    private lateinit var diagnosticsText: TextView
+    private lateinit var copyDiagnosticsButton: Button
+
+    // Set while the switch is moved from code, so that does not count as the user flipping it
+    private var updatingKeepOnPhoneSwitch = false
 
     private var installedApps: List<ApplicationInfo> = emptyList()
     private var audioOutputs: List<AudioDeviceInfo> = emptyList()
@@ -157,9 +170,32 @@ class MainActivity : AppCompatActivity() {
         balanceValue = findViewById(R.id.balanceValue)
         startStopButton = findViewById(R.id.startStopButton)
         serviceStatus = findViewById(R.id.serviceStatus)
+        keepOnPhoneSwitch = findViewById(R.id.keepOnPhoneSwitch)
+        keepOnPhoneStatus = findViewById(R.id.keepOnPhoneStatus)
+        diagnosticsButton = findViewById(R.id.diagnosticsButton)
+        diagnosticsText = findViewById(R.id.diagnosticsText)
+        copyDiagnosticsButton = findViewById(R.id.copyDiagnosticsButton)
+
+        // Usable once root is confirmed
+        setKeepOnPhoneSwitch(RootRouting.isKeepOnPhoneEnabled(this))
+        keepOnPhoneSwitch.isEnabled = false
     }
 
     private fun setupListeners() {
+        keepOnPhoneSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (!updatingKeepOnPhoneSwitch) {
+                applyKeepOnPhone(isChecked)
+            }
+        }
+
+        diagnosticsButton.setOnClickListener { showDiagnostics() }
+
+        copyDiagnosticsButton.setOnClickListener {
+            val clipboard = getSystemService(ClipboardManager::class.java)
+            clipboard.setPrimaryClip(ClipData.newPlainText("AudioPipe diagnostics", diagnosticsText.text))
+            Toast.makeText(this, R.string.diagnostics_copied, Toast.LENGTH_SHORT).show()
+        }
+
         connectButton.setOnClickListener {
            // Retry connection logic
            Toast.makeText(this, "Retrying connection...", Toast.LENGTH_SHORT).show()
@@ -333,9 +369,19 @@ class MainActivity : AppCompatActivity() {
         statusText.text = getString(R.string.connected_root)
         connectButton.visibility = View.GONE
         importKeyButton.visibility = View.GONE
+
+        keepOnPhoneSwitch.isEnabled = true
+        if (RootRouting.isKeepOnPhoneEnabled(this)) {
+            // Apply again: routing settings may not survive a reboot
+            applyKeepOnPhone(true)
+        } else {
+            keepOnPhoneStatus.text = getString(R.string.keep_on_phone_off)
+        }
     }
 
     private fun updateAdbStatus(connected: Boolean) {
+        keepOnPhoneSwitch.isEnabled = false
+        keepOnPhoneStatus.text = getString(R.string.keep_on_phone_needs_root)
         importKeyButton.visibility = View.VISIBLE
         if (connected) {
             statusIndicator.setBackgroundResource(R.drawable.status_indicator_green)
@@ -346,6 +392,62 @@ class MainActivity : AppCompatActivity() {
             statusText.text = getString(R.string.disconnected)
             connectButton.text = getString(R.string.retry)
             connectButton.visibility = View.VISIBLE
+        }
+    }
+
+    private fun setKeepOnPhoneSwitch(checked: Boolean) {
+        updatingKeepOnPhoneSwitch = true
+        keepOnPhoneSwitch.isChecked = checked
+        updatingKeepOnPhoneSwitch = false
+    }
+
+    /** Turns "keep TalkBack and notifications on the phone" on or off through the root helper. */
+    private fun applyKeepOnPhone(enabled: Boolean) {
+        setKeepOnPhoneSwitch(enabled)
+        keepOnPhoneSwitch.isEnabled = false
+        keepOnPhoneStatus.text = getString(R.string.keep_on_phone_working)
+        lifecycleScope.launch {
+            val action = if (enabled) RootRouting.ACTION_KEEP_ON_PHONE else RootRouting.ACTION_RELEASE
+            val result = withContext(Dispatchers.IO) {
+                RootRouting.runHelper(applicationContext, action).onFailure {
+                    // A half-applied change is worse than none: undo what did get through
+                    if (enabled) RootRouting.runHelper(applicationContext, RootRouting.ACTION_RELEASE)
+                }
+            }
+            keepOnPhoneSwitch.isEnabled = shellExecutor.isRootAvailable
+            result.onSuccess {
+                RootRouting.setKeepOnPhoneEnabled(this@MainActivity, enabled)
+                keepOnPhoneStatus.text =
+                    getString(if (enabled) R.string.keep_on_phone_on else R.string.keep_on_phone_off)
+            }.onFailure { error ->
+                // Show the real state: a failed "on" leaves it off, a failed "off" leaves it on
+                RootRouting.setKeepOnPhoneEnabled(this@MainActivity, !enabled)
+                setKeepOnPhoneSwitch(!enabled)
+                keepOnPhoneStatus.text =
+                    getString(R.string.keep_on_phone_failed, RootRouting.shortReason(error))
+            }
+        }
+    }
+
+    private fun showDiagnostics() {
+        diagnosticsButton.isEnabled = false
+        diagnosticsText.visibility = View.VISIBLE
+        diagnosticsText.text = getString(R.string.diagnostics_running)
+        lifecycleScope.launch {
+            val report = withContext(Dispatchers.IO) {
+                runCatching {
+                    RootRouting.collectDiagnostics(applicationContext, shellExecutor.isRootAvailable)
+                }.getOrElse { "Diagnostics failed: $it" }
+            }
+            diagnosticsText.text = report
+            diagnosticsButton.isEnabled = true
+            copyDiagnosticsButton.visibility = View.VISIBLE
+            // Put TalkBack on the copy button instead of reading the whole report aloud
+            copyDiagnosticsButton.post {
+                copyDiagnosticsButton.performAccessibilityAction(
+                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null
+                )
+            }
         }
     }
 

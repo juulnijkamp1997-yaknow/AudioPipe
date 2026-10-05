@@ -90,6 +90,95 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Bluetooth Speaker Card: keep TalkBack and notifications on the phone -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#1E1E1E"
+            app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/speaker_card_title"
+                    android:accessibilityHeading="true"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/keepOnPhoneSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/keep_on_phone"
+                    android:textColor="@android:color/white" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/keep_on_phone_summary"
+                    android:textColor="#DDDDDD" />
+
+                <TextView
+                    android:id="@+id/keepOnPhoneStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:accessibilityLiveRegion="polite"
+                    android:textColor="#DDDDDD" />
+
+                <Button
+                    android:id="@+id/diagnosticsButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/show_diagnostics"
+                    style="@style/Widget.Material3.Button.TonalButton" />
+
+                <!-- Copy button before the report, so TalkBack users reach it without the long text -->
+                <Button
+                    android:id="@+id/copyDiagnosticsButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/copy_diagnostics"
+                    android:visibility="gone"
+                    style="@style/Widget.Material3.Button.TonalButton" />
+
+                <TextView
+                    android:id="@+id/diagnosticsText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textIsSelectable="true"
+                    android:textColor="#DDDDDD"
+                    android:textSize="12sp"
+                    android:typeface="monospace"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- The original AudioPipe function: send one app to another output -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/one_app_section_title"
+            android:accessibilityHeading="true"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
         <!-- App Selection Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
