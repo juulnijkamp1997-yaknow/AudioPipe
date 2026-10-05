@@ -20,6 +20,10 @@
     <!-- Re-apply "keep TalkBack and notifications on the phone" after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- "Nearby devices": without it, the app's device list on Android 17 leaves out
+         connected Bluetooth speakers, while root does see them -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

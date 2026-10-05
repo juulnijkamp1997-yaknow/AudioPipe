@@ -63,6 +63,10 @@ class MainActivity : AppCompatActivity() {
     // Set while the switch is moved from code, so that does not count as the user flipping it
     private var updatingKeepOnPhoneSwitch = false
 
+    // Device list and root check wait for the permission dialogs (see onCreate)
+    private var permissionsSettled = false
+    private var deviceCallbackRegistered = false
+
     private var installedApps: List<ApplicationInfo> = emptyList()
     private var audioOutputs: List<AudioDeviceInfo> = emptyList()
     private var outputLabels: List<String> = emptyList()
@@ -148,12 +152,23 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
         balanceSeekBar.stateDescription = balanceDescription(0)
         loadApps()
-        loadAudioOutputs()
-        // A null handler delivers the callbacks on the main thread
-        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+        // The device list is read only once the permission dialogs are answered: Android keeps
+        // the list per process, and one read before "Nearby devices" is granted can keep
+        // Bluetooth speakers hidden until the app restarts.
         if (!requestPermissions()) {
-            checkAdbStatus()
+            onPermissionsSettled()
         }
+    }
+
+    private fun onPermissionsSettled() {
+        permissionsSettled = true
+        loadAudioOutputs()
+        if (!deviceCallbackRegistered) {
+            // A null handler delivers the callbacks on the main thread
+            audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+            deviceCallbackRegistered = true
+        }
+        checkAdbStatus()
     }
 
     private fun bindViews() {
@@ -370,6 +385,12 @@ class MainActivity : AppCompatActivity() {
         connectButton.visibility = View.GONE
         importKeyButton.visibility = View.GONE
 
+        // With this app-op Android skips the "start recording or casting" dialog on every Start.
+        // AudioPipe only uses that permission to capture one app's sound, never the screen.
+        lifecycleScope.launch(Dispatchers.IO) {
+            RootRouting.runAsRoot("appops set $packageName PROJECT_MEDIA allow")
+        }
+
         keepOnPhoneSwitch.isEnabled = true
         if (RootRouting.isKeepOnPhoneEnabled(this)) {
             // Apply again: routing settings may not survive a reboot
@@ -548,7 +569,9 @@ class MainActivity : AppCompatActivity() {
     private fun requestPermissions(): Boolean {
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.POST_NOTIFICATIONS,
+            // "Nearby devices": lets the app see connected Bluetooth speakers
+            Manifest.permission.BLUETOOTH_CONNECT
         )
         val needed = permissions.filter {
             ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -560,8 +583,8 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    // The root check waits until the permission dialogs are answered, so the
-    // Magisk prompt is never hidden behind them while its timer runs.
+    // The device list and the root check wait until the permission dialogs are answered, so
+    // Bluetooth speakers are not hidden and the Magisk prompt is never covered by a dialog.
     @Deprecated("Deprecated in Java")
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -570,18 +593,22 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            checkAdbStatus()
+            onPermissionsSettled()
         }
     }
 
     override fun onResume() {
         super.onResume()
         updateServiceUI(SoundMasterService.running)
-        loadAudioOutputs()
+        if (permissionsSettled) {
+            loadAudioOutputs()
+        }
     }
 
     override fun onDestroy() {
-        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        if (deviceCallbackRegistered) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        }
         super.onDestroy()
     }
 }

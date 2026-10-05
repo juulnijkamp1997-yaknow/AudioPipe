@@ -45,9 +45,12 @@ object OutputDevices {
             .distinctBy { it.id }
             .sortedBy { if (it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) 0 else 1 }
 
-    /** The device to pick when the user has not chosen one: the first one that is not the phone itself. */
+    /**
+     * The device to pick when the user has not chosen one: the phone speaker. While a Bluetooth
+     * speaker plays, the usual wish is to keep one app on the phone.
+     */
     fun defaultIndex(devices: List<AudioDeviceInfo>): Int =
-        devices.indexOfFirst { it.type != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        devices.indexOfFirst { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
             .takeIf { it >= 0 } ?: 0
 
     fun label(context: Context, device: AudioDeviceInfo): String {

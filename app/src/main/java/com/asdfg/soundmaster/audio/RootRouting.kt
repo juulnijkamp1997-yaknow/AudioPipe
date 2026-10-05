@@ -1,6 +1,8 @@
 package com.asdfg.soundmaster.audio
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import com.asdfg.soundmaster.root.RoutingHelper
@@ -19,6 +21,7 @@ object RootRouting {
     const val ACTION_KEEP_ON_PHONE = "keep-on-phone"
     const val ACTION_RELEASE = "release"
     private const val ACTION_STATUS = "status"
+    private const val ACTION_DEVICES = "devices"
 
     fun isKeepOnPhoneEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_KEEP_ON_PHONE, false)
@@ -29,12 +32,15 @@ object RootRouting {
             .apply()
     }
 
-    /** Runs a [RoutingHelper] command as root. Fails unless the helper reports "RESULT OK". */
-    fun runHelper(context: Context, action: String): Result<String> {
+    /**
+     * Runs a [RoutingHelper] command as root, or as [asUid] (through su) to see what a fresh
+     * process with that uid's permissions sees. Fails unless the helper reports "RESULT OK".
+     */
+    fun runHelper(context: Context, action: String, asUid: Int? = null): Result<String> {
         val apk = context.applicationInfo.sourceDir
         val command = "CLASSPATH='$apk' /system/bin/app_process /system/bin " +
             "${RoutingHelper::class.java.name} $action"
-        return su(command).mapCatching { output ->
+        return su(command, asUid).mapCatching { output ->
             val result = output.lineSequence().lastOrNull { it.startsWith("RESULT ") }
             if (result == "RESULT OK") output else throw RoutingException(result ?: "no result", output)
         }
@@ -43,8 +49,11 @@ object RootRouting {
     /** Text the user can copy into a chat: what the app and root see, and the Bluetooth state. */
     fun collectDiagnostics(context: Context, rootAvailable: Boolean): String = buildString {
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
+        val nearbyDevices = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) ==
+            PackageManager.PERMISSION_GRANTED
         appendLine("AudioPipe ${pkg.versionName}, Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT}), ${Build.MANUFACTURER} ${Build.MODEL}")
         appendLine("Root: $rootAvailable, keep-on-phone setting: ${isKeepOnPhoneEnabled(context)}")
+        appendLine("Nearby devices permission: $nearbyDevices, routing one app: ${SoundMasterService.running}")
         appendLine()
 
         appendLine("== Outputs seen by the app ==")
@@ -59,6 +68,15 @@ object RootRouting {
             return@buildString
         }
 
+        // Same uid and permissions as the app, but a fresh process: tells apart a permission
+        // filter (Bluetooth missing here too) from a stale device list inside the app
+        appendLine("== Fresh process with the app's uid ==")
+        appendLine(
+            runHelper(context, ACTION_DEVICES, asUid = context.applicationInfo.uid)
+                .fold({ it }, { describe(it) }).trim()
+        )
+        appendLine()
+
         appendLine("== Root helper ==")
         appendLine(runHelper(context, ACTION_STATUS).fold({ it }, { describe(it) }).trim())
         appendLine()
@@ -72,11 +90,11 @@ object RootRouting {
         )
         appendLine()
 
-        appendLine("== Audio policy: available outputs ==")
+        appendLine("== Audio policy ==")
         appendLine(
             su(
-                "dumpsys media.audio_policy | sed -n '/Available output devices/,/Available input devices/p' " +
-                    "| grep -E 'Device [0-9]+:|type:|tag name:|address:|name:' | head -n 80"
+                "dumpsys media.audio_policy | grep -E 'AUDIO_DEVICE_OUT_|Output|I/O handle|Devices|Flags|Active' " +
+                    "| head -n 80"
             ).fold({ it }, { describe(it) }).trim()
         )
         appendLine()
@@ -95,8 +113,13 @@ object RootRouting {
     fun shortReason(error: Throwable): String =
         (error.message ?: error.toString()).removePrefix("RESULT FAILED: ").lineSequence().first().take(200)
 
-    private fun su(command: String): Result<String> = try {
-        val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+    /** One-off root shell command, for example an appops change. */
+    fun runAsRoot(command: String): Result<String> = su(command)
+
+    private fun su(command: String, asUid: Int? = null): Result<String> = try {
+        // Magisk su: options first, then the user (a uid) to switch to
+        val suCommand = if (asUid == null) listOf("su", "-c", command) else listOf("su", "-c", command, asUid.toString())
+        val process = ProcessBuilder(suCommand).redirectErrorStream(true).start()
         process.outputStream.close()
         val output = process.inputStream.bufferedReader().use { it.readText() }
         val exitCode = process.waitFor()
