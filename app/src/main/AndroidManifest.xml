@@ -56,6 +56,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- Diagnostics: lists output devices from a fresh process of this app -->
+        <provider
+            android:name=".audio.DeviceProbeProvider"
+            android:authorities="${applicationId}.probe"
+            android:exported="false"
+            android:process=":probe" />
+
     </application>
 
 </manifest>

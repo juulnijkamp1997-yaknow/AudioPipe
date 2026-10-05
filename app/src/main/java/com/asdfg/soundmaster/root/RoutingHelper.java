@@ -49,7 +49,8 @@ public final class RoutingHelper {
             AudioAttributes.USAGE_GAME,
             AudioAttributes.USAGE_VOICE_COMMUNICATION,
             AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING,
-            17, // AudioAttributes.USAGE_CALL_ASSISTANT
+            // Not USAGE_CALL_ASSISTANT: it is a system usage, and AudioAttributes.Builder.setUsage
+            // rejects it ("Invalid usage 17"), which broke the whole command on Android 17
     };
 
     /** Shown in the status output. */
@@ -197,7 +198,7 @@ public final class RoutingHelper {
         Object[] devices = (Object[]) Class.forName("android.media.AudioManager")
                 .getMethod("getDevicesStatic", int.class)
                 .invoke(null, GET_DEVICES_OUTPUTS);
-        System.out.println(title + " (" + devices.length + "):");
+        System.out.println(title + ", uid " + android.os.Process.myUid() + " (" + devices.length + "):");
         for (Object device : devices) {
             AudioDeviceInfo info = (AudioDeviceInfo) device;
             System.out.println("  type " + info.getType() + " id " + info.getId()

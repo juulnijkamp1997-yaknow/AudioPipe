@@ -63,6 +63,11 @@ object RootRouting {
         }
         appendLine()
 
+        // A freshly started process of the app itself, same package and permissions, no root
+        appendLine("== Fresh app process ==")
+        appendLine(DeviceProbeProvider.query(context).trim())
+        appendLine()
+
         if (!rootAvailable) {
             appendLine("No root, so no system details.")
             return@buildString

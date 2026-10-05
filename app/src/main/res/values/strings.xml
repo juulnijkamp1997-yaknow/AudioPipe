@@ -33,7 +33,7 @@
     <string name="copy_diagnostics">Copy diagnostics</string>
     <string name="diagnostics_copied">Diagnostics copied</string>
     <string name="one_app_section_title">Send one app to another output</string>
-    <string name="one_app_section_summary">Example: Spotify plays on your Bluetooth speaker. Pick YouTube and Phone speaker, then tap Start: YouTube plays on your phone while Spotify keeps playing on the speaker. Tap Stop and YouTube follows the speaker again.</string>
+    <string name="one_app_section_summary">Example: Spotify plays on your Bluetooth speaker. Pick YouTube and Phone speaker, then tap Start: YouTube plays on your phone while Spotify keeps playing on the speaker. Tap Stop and YouTube follows the speaker again. Your Bluetooth speaker does not need to be in the output list for this: everything plays there by default.</string>
 
     <!-- Main UI -->
     <string name="select_app">Select App</string>
