@@ -17,7 +17,7 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
-    <!-- Re-apply "keep TalkBack and notifications on the phone" after a reboot -->
+    <!-- Clean up after the hub (or the old Speaker mode) after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- "Nearby devices": without it, the app's device list on Android 17 leaves out
@@ -33,15 +33,28 @@
         android:theme="@style/Theme.SoundMaster"
         android:usesCleartextTraffic="true">
         
+        <!-- The Bluetooth hub: the app's only screen -->
         <activity
-            android:name=".MainActivity"
+            android:name=".hub.HubActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.SoundMaster">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The older screen (capture one app, Speaker mode). No longer opened from the launcher. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SoundMaster" />
+
+        <!-- The Stop button in the hub's notification -->
+        <receiver
+            android:name=".hub.HubStopReceiver"
+            android:exported="false" />
 
         <service
             android:name=".audio.SoundMasterService"

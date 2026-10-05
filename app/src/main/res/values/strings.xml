@@ -19,7 +19,42 @@
     <string name="retry">Retry</string>
     <string name="import_key">Import ADB key</string>
 
-    <!-- Bluetooth speaker: keep TalkBack and notifications on the phone -->
+    <!-- Bluetooth hub (the main screen). Dutch in values-nl. -->
+    <string name="hub_title">Bluetooth hub</string>
+    <string name="hub_switch">Hub on</string>
+    <string name="hub_summary">Ticked apps play on your Bluetooth speaker. Everything else stays on your phone: TalkBack, notifications, ringtone, alarms and all other apps. Apps no longer pause each other, so the speaker and your phone can play at the same time. Turning the hub on or off pauses what is playing once. To keep calls off the speaker, turn off Phone calls for the speaker in the Bluetooth settings.</string>
+    <string name="hub_checking_root">Checking root access…</string>
+    <string name="hub_no_root">No root access. The hub needs root (Magisk).</string>
+    <string name="hub_off">Off. Your phone works as usual.</string>
+    <string name="hub_starting">Starting…</string>
+    <string name="hub_stopping">Stopping…</string>
+    <string name="hub_waiting">On. Waiting for a Bluetooth speaker. Until one connects, everything plays on your phone.</string>
+    <string name="hub_no_apps">On, but no app is ticked. Everything plays on your phone.</string>
+    <string name="hub_active">On. To %2$s: %1$s. Everything else stays on your phone.</string>
+    <string name="hub_unknown_speaker">the Bluetooth speaker</string>
+    <string name="hub_chosen_apps">the ticked apps</string>
+    <string name="hub_pick_app_first">Tick at least one app first.</string>
+    <string name="hub_start_failed">Could not start: %s</string>
+    <string name="hub_stop_failed">Stopping went wrong: %s</string>
+    <string name="hub_error_offload">Not started: Bluetooth hardware offload is still on. See First needed below.</string>
+    <string name="hub_error_shared">Routing stopped: Bluetooth still shares your phone\'s main sound output, so your phone\'s own sounds would go to the speaker too. Restart your phone after turning on Disable Bluetooth A2DP hardware offload, then turn the hub on again.</string>
+    <string name="hub_error_register">Android refused the route: %s</string>
+    <string name="hub_error_other">Something went wrong: %s</string>
+    <string name="hub_requirement_title">First needed</string>
+    <string name="hub_requirement_text">Open Developer options and turn on Disable Bluetooth A2DP hardware offload, then restart your phone. Without it, Bluetooth shares your phone\'s main sound output and the hub cannot keep them apart. To undo: turn it off and restart.</string>
+    <string name="hub_open_developer_options">Open developer options</string>
+    <string name="hub_apps_title">Apps for the Bluetooth speaker</string>
+    <string name="hub_apps_summary">Ticked apps play on the speaker. You can change this while the hub is on.</string>
+    <string name="hub_search_hint">Search an app</string>
+    <string name="hub_loading_apps">Loading apps…</string>
+    <string name="hub_no_match">No app with that name.</string>
+    <string name="hub_diagnostics_title">Diagnostics</string>
+    <string name="hub_channel">Bluetooth hub</string>
+    <string name="hub_notification_title">Bluetooth hub on</string>
+    <string name="hub_notification_text">Ticked apps play on the Bluetooth speaker, everything else on your phone.</string>
+    <string name="hub_stop_action">Stop</string>
+
+    <!-- Bluetooth speaker: keep TalkBack and notifications on the phone (older screen) -->
     <string name="speaker_card_title">Bluetooth speaker</string>
     <string name="keep_on_phone">Speaker mode</string>
     <string name="keep_on_phone_summary">For playing on a Bluetooth speaker. TalkBack, notification sounds, ringtones and alarms stay on the phone speaker. Apps no longer pause each other, so music on the speaker and a video on your phone can play at the same time. Calls still interrupt. Turning it on pauses what is playing once.</string>

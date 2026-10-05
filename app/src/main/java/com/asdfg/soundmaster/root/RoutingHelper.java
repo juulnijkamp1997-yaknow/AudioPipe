@@ -24,9 +24,13 @@ import java.util.Map;
  * app context, only framework classes and reflection.
  *
  * Commands:
- *   keep-on-phone  play TalkBack, notifications, ringtones and alarms on the phone speaker,
- *                  also while a Bluetooth speaker is connected, and let media apps play side
- *                  by side instead of pausing each other
+ *   hub FILES_DIR VERSION
+ *                  the Bluetooth hub: keeps running, sends the chosen apps to the Bluetooth
+ *                  speaker and keeps everything else on the phone (see HubDaemon)
+ *   hub-release    undo what a hub that did not stop cleanly left behind
+ *   keep-on-phone  (older versions) play TalkBack, notifications, ringtones and alarms on the
+ *                  phone speaker, also while a Bluetooth speaker is connected, and let media
+ *                  apps play side by side instead of pausing each other
  *   release        undo keep-on-phone
  *   status         print the output devices and how each sound type is routed
  *   devices        print only the output devices this process can see
@@ -75,6 +79,15 @@ public final class RoutingHelper {
         String command = args.length > 0 ? args[0] : "status";
         try {
             switch (command) {
+                case "hub":
+                    if (args.length < 2) {
+                        throw new IllegalArgumentException("hub needs the app's files directory");
+                    }
+                    HubDaemon.run(args[1], args.length > 2 ? args[2] : "?");
+                    break;
+                case "hub-release":
+                    HubDaemon.releaseAll();
+                    break;
                 case "keep-on-phone":
                     keepOnPhone();
                     break;
@@ -133,7 +146,7 @@ public final class RoutingHelper {
         setMultiAudioFocus(audio, true);
     }
 
-    private static void setMultiAudioFocus(Object audio, boolean enabled) throws Exception {
+    static void setMultiAudioFocus(Object audio, boolean enabled) throws Exception {
         method(audio, "setMultiAudioFocusEnabled", 1).invoke(audio, enabled);
         System.out.println("apps keep playing side by side (multi audio focus): " + (enabled ? "on" : "off"));
     }
@@ -209,15 +222,24 @@ public final class RoutingHelper {
     }
 
     private static void printOutputDevices(String title) throws Exception {
-        Object[] devices = (Object[]) Class.forName("android.media.AudioManager")
-                .getMethod("getDevicesStatic", int.class)
-                .invoke(null, GET_DEVICES_OUTPUTS);
+        AudioDeviceInfo[] devices = outputDevices();
         System.out.println(title + ", uid " + android.os.Process.myUid() + " (" + devices.length + "):");
-        for (Object device : devices) {
-            AudioDeviceInfo info = (AudioDeviceInfo) device;
+        for (AudioDeviceInfo info : devices) {
             System.out.println("  type " + info.getType() + " id " + info.getId()
                     + " name " + info.getProductName() + " address " + info.getAddress());
         }
+    }
+
+    /** The connected output devices, fresh from the audio service (no per-process cache). */
+    static AudioDeviceInfo[] outputDevices() throws Exception {
+        Object[] devices = (Object[]) Class.forName("android.media.AudioManager")
+                .getMethod("getDevicesStatic", int.class)
+                .invoke(null, GET_DEVICES_OUTPUTS);
+        AudioDeviceInfo[] result = new AudioDeviceInfo[devices.length];
+        for (int i = 0; i < devices.length; i++) {
+            result[i] = (AudioDeviceInfo) devices[i];
+        }
+        return result;
     }
 
     private static String usageName(int usage) {
@@ -243,14 +265,19 @@ public final class RoutingHelper {
 
     /** Strategies to route to the phone: those for PHONE_USAGES, minus any that also carry music or calls. */
     private static Map<Integer, String> targetStrategies(Object audio) throws Exception {
+        return selectStrategies(audio, PHONE_USAGES, PROTECTED_USAGES);
+    }
+
+    /** Strategies that carry any of the include usages and none of the exclude usages, as id -> name. */
+    static Map<Integer, String> selectStrategies(Object audio, int[] include, int[] exclude) throws Exception {
         Map<Integer, String> targets = new LinkedHashMap<>();
         for (Object strategy : strategies(audio)) {
-            if (!supportsAny(strategy, PHONE_USAGES)) {
+            if (!supportsAny(strategy, include)) {
                 continue;
             }
-            if (supportsAny(strategy, PROTECTED_USAGES)) {
+            if (supportsAny(strategy, exclude)) {
                 System.out.println("skipped strategy " + id(strategy) + " " + name(strategy)
-                        + ": it also carries music or calls");
+                        + ": it also carries sounds that are left alone");
                 continue;
             }
             targets.put(id(strategy), name(strategy));
@@ -263,7 +290,7 @@ public final class RoutingHelper {
      * service's own getAudioProductStrategies() (what the system API AudioManager uses) comes
      * first; the static methods remain as fallbacks for other versions.
      */
-    private static List<Object> strategies(Object audio) throws Exception {
+    static List<Object> strategies(Object audio) throws Exception {
         List<String> failures = new ArrayList<>();
         try {
             return asList(method(audio, "getAudioProductStrategies", 0).invoke(audio));
@@ -292,7 +319,7 @@ public final class RoutingHelper {
         return new ArrayList<>((List<?>) value);
     }
 
-    private static boolean supportsAny(Object strategy, int[] usages) throws Exception {
+    static boolean supportsAny(Object strategy, int[] usages) throws Exception {
         for (int usage : usages) {
             if (supports(strategy, usage)) {
                 return true;
@@ -301,7 +328,7 @@ public final class RoutingHelper {
         return false;
     }
 
-    private static boolean supports(Object strategy, int usage) throws Exception {
+    static boolean supports(Object strategy, int usage) throws Exception {
         try {
             return (Boolean) strategy.getClass()
                     .getMethod("supportsAudioAttributes", AudioAttributes.class)
@@ -314,11 +341,11 @@ public final class RoutingHelper {
         }
     }
 
-    private static int id(Object strategy) throws Exception {
+    static int id(Object strategy) throws Exception {
         return (Integer) strategy.getClass().getMethod("getId").invoke(strategy);
     }
 
-    private static String name(Object strategy) {
+    static String name(Object strategy) {
         try {
             return String.valueOf(strategy.getClass().getMethod("getName").invoke(strategy));
         } catch (Throwable t) {
@@ -328,26 +355,41 @@ public final class RoutingHelper {
 
     // ---- framework access ----
 
-    private static AudioAttributes attributes(int usage) {
+    static AudioAttributes attributes(int usage) {
         return new AudioAttributes.Builder().setUsage(usage).build();
     }
 
     private static Object speaker() throws Exception {
-        Constructor<?> constructor = Class.forName("android.media.AudioDeviceAttributes")
-                .getConstructor(int.class, int.class, String.class);
-        return constructor.newInstance(ROLE_OUTPUT, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "");
+        return deviceAttributes(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "");
     }
 
     private static boolean isOnlySpeaker(List<?> devices) throws Exception {
+        return isSingleDeviceOfType(devices, new int[] {AudioDeviceInfo.TYPE_BUILTIN_SPEAKER});
+    }
+
+    /** True when the list holds exactly one AudioDeviceAttributes, of one of these AudioDeviceInfo types. */
+    static boolean isSingleDeviceOfType(List<?> devices, int[] types) throws Exception {
         if (devices.size() != 1) {
             return false;
         }
         Object device = devices.get(0);
         int type = (Integer) device.getClass().getMethod("getType").invoke(device);
-        return type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
+        for (int allowed : types) {
+            if (type == allowed) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private static Object audioService() throws Exception {
+    /** An output AudioDeviceAttributes for an AudioDeviceInfo type and address. */
+    static Object deviceAttributes(int type, String address) throws Exception {
+        Constructor<?> constructor = Class.forName("android.media.AudioDeviceAttributes")
+                .getConstructor(int.class, int.class, String.class);
+        return constructor.newInstance(ROLE_OUTPUT, type, address == null ? "" : address);
+    }
+
+    static Object audioService() throws Exception {
         IBinder binder = (IBinder) Class.forName("android.os.ServiceManager")
                 .getMethod("getService", String.class)
                 .invoke(null, "audio");
@@ -364,7 +406,7 @@ public final class RoutingHelper {
      * small signature changes between Android versions do not break it. Looking it up on the
      * service object itself would find the private Stub.Proxy class, which reflection may not call.
      */
-    private static Method method(Object service, String name, int parameterCount) throws Exception {
+    static Method method(Object service, String name, int parameterCount) throws Exception {
         Class<?> api = Class.forName("android.media.IAudioService");
         for (Method method : api.getMethods()) {
             if (method.getName().equals(name) && method.getParameterTypes().length == parameterCount) {
@@ -374,7 +416,7 @@ public final class RoutingHelper {
         throw new NoSuchMethodException(name + " with " + parameterCount + " parameters on " + service.getClass());
     }
 
-    private static Throwable unwrap(Throwable t) {
+    static Throwable unwrap(Throwable t) {
         Throwable current = t;
         while (current instanceof InvocationTargetException && current.getCause() != null) {
             current = current.getCause();

@@ -10,9 +10,17 @@ A powerful Android audio routing utility that **captures audio from individual a
 
 On a rooted phone (Magisk, KernelSU, APatch) AudioPipe runs its `appops` and `input` commands through `su`. Wireless debugging, an ADB key and Wi-Fi are then not needed. The app asks for root on launch; the status line reads "Connected via root" once it is granted. Without root it falls back to the original wireless-debugging route below.
 
-### Keep TalkBack and notifications on the phone
+### Bluetooth hub (the app's main screen)
 
-Stock Android sends every sound to a connected Bluetooth speaker. With root, the "Keep TalkBack and notifications on the phone" switch makes the phone speaker the preferred output for TalkBack, notifications, ringtones and alarms, while music keeps going to the Bluetooth speaker; similar to Samsung's "Separate app sound". It uses the audio service's `setPreferredDevicesForStrategy` from a small Java helper that runs as root through `app_process` (`root/RoutingHelper.java`). Routing strategies that also carry media or calls are never changed. The setting is applied again when the app opens and after a reboot. Whether the phone can play to its speaker and to Bluetooth at the same time depends on the device's audio hardware; the Diagnostics button shows what the audio system reports.
+Stock Android sends every sound to a connected Bluetooth speaker. The hub turns that around, like a cast button for Bluetooth: tick the apps that may play on the speaker and switch the hub on. Those apps play on the Bluetooth speaker; everything else (TalkBack, notifications, ringtones, alarms, other apps) stays on the phone, and apps no longer pause each other. Similar to Samsung's "Separate app sound".
+
+Nothing is captured or replayed. A small Java process runs as root through `app_process` (`root/HubDaemon.java`) and:
+
+- registers a dynamic audio policy with a `RENDER` mix that matches the chosen apps' uids and targets the connected Bluetooth A2DP device, so Android's audio policy manager routes those apps itself; the policy belongs to the process and disappears with it;
+- makes the phone (speaker, or wired or USB headphones) the preferred device for the other routing strategies with `setPreferredDevicesForStrategy`; strategies that carry calls are left alone;
+- turns on multi audio focus and turns compressed offload playback off while it runs (offloaded tracks never match a mix).
+
+It needs Developer options, "Disable Bluetooth A2DP hardware offload", and a restart. With hardware offload, Bluetooth is played through the phone's main output, and a mix on that output would pull the phone's own sounds to the speaker too; the hub checks the audio policy dump after every registration and stops routing if that happens. The app talks to the root process through files in its own files directory (`hub.conf`, `hub.stop`, `hub.status`), so only starting it needs root. The older capture-based screen and the "Speaker mode" switch are no longer opened from the launcher.
 
 ### Builds
 

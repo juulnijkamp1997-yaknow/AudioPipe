@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dutch for the Bluetooth hub screen. Strings not listed here fall back to English. -->
+<resources>
+    <string name="hub_title">Bluetooth-hub</string>
+    <string name="hub_switch">Hub aan</string>
+    <string name="hub_summary">Aangevinkte apps spelen op je Bluetooth-speaker. Al het andere blijft op je telefoon: TalkBack, meldingen, beltoon, wekker en alle andere apps. Apps pauzeren elkaar niet meer, dus de speaker en je telefoon kunnen tegelijk spelen. Bij aanzetten en uitzetten pauzeert wat er speelt één keer. Wil je gesprekken nooit op de speaker, zet dan bij de speaker in de Bluetooth-instellingen Telefoongesprekken uit.</string>
+    <string name="hub_checking_root">Root-toegang controleren…</string>
+    <string name="hub_no_root">Geen root-toegang. De hub heeft root nodig (Magisk).</string>
+    <string name="hub_off">Uit. Je telefoon werkt zoals normaal.</string>
+    <string name="hub_starting">Starten…</string>
+    <string name="hub_stopping">Stoppen…</string>
+    <string name="hub_waiting">Aan. Wacht op een Bluetooth-speaker. Tot er een verbonden is, speelt alles op je telefoon.</string>
+    <string name="hub_no_apps">Aan, maar er is geen app aangevinkt. Alles speelt op je telefoon.</string>
+    <string name="hub_active">Aan. Naar %2$s: %1$s. Al het andere blijft op je telefoon.</string>
+    <string name="hub_unknown_speaker">de Bluetooth-speaker</string>
+    <string name="hub_chosen_apps">de aangevinkte apps</string>
+    <string name="hub_pick_app_first">Vink eerst minstens één app aan.</string>
+    <string name="hub_start_failed">Starten lukte niet: %s</string>
+    <string name="hub_stop_failed">Stoppen ging mis: %s</string>
+    <string name="hub_error_offload">Niet gestart: Bluetooth-hardware-offload staat nog aan. Zie Eerst nodig hieronder.</string>
+    <string name="hub_error_shared">Omleiding gestopt: Bluetooth deelt nog de hoofdgeluidsuitgang van je telefoon, dan zouden ook je telefoongeluiden naar de speaker gaan. Start je telefoon opnieuw op nadat je Bluetooth A2DP-hardware-offload uitzetten hebt aangezet, en zet de hub daarna weer aan.</string>
+    <string name="hub_error_register">Android weigerde de omleiding: %s</string>
+    <string name="hub_error_other">Er ging iets mis: %s</string>
+    <string name="hub_requirement_title">Eerst nodig</string>
+    <string name="hub_requirement_text">Open Ontwikkelaarsopties en zet Bluetooth A2DP-hardware-offload uitzetten aan. Start daarna je telefoon opnieuw op. Zonder deze schakelaar deelt Bluetooth de hoofdgeluidsuitgang van je telefoon en kan de hub ze niet uit elkaar houden. Terugdraaien: schakelaar uit en opnieuw opstarten.</string>
+    <string name="hub_open_developer_options">Ontwikkelaarsopties openen</string>
+    <string name="hub_apps_title">Apps voor de Bluetooth-speaker</string>
+    <string name="hub_apps_summary">Aangevinkte apps spelen op de speaker. Je kunt dit ook wijzigen terwijl de hub aan staat.</string>
+    <string name="hub_search_hint">Zoek een app</string>
+    <string name="hub_loading_apps">Apps laden…</string>
+    <string name="hub_no_match">Geen app met die naam.</string>
+    <string name="hub_diagnostics_title">Diagnose</string>
+    <string name="hub_channel">Bluetooth-hub</string>
+    <string name="hub_notification_title">Bluetooth-hub aan</string>
+    <string name="hub_notification_text">Aangevinkte apps spelen op de Bluetooth-speaker, al het andere op je telefoon.</string>
+    <string name="hub_stop_action">Stoppen</string>
+
+    <string name="show_diagnostics">Diagnose tonen</string>
+    <string name="copy_diagnostics">Diagnose kopiëren</string>
+    <string name="diagnostics_running">Diagnose verzamelen…</string>
+    <string name="diagnostics_copied">Diagnose gekopieerd</string>
+</resources>

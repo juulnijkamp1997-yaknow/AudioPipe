@@ -4,23 +4,35 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.asdfg.soundmaster.hub.HubControl
 
 /**
- * Routing preferences may not survive a reboot. When "keep TalkBack and notifications on the
- * phone" is on, apply it again after boot, so it works without opening the app first.
+ * After a reboot the hub is off. Android does keep the "apps play side by side" setting, so
+ * when the hub (or the old Speaker mode) was on at shutdown, switch that back to normal.
  */
 class RoutingBootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        if (!RootRouting.isKeepOnPhoneEnabled(context)) return
+        val hubWasOn = HubControl.wasOn(context)
+        val keepOnPhone = RootRouting.isKeepOnPhoneEnabled(context)
+        if (!hubWasOn && !keepOnPhone) return
 
         val pending = goAsync()
         val appContext = context.applicationContext
         Thread {
             try {
-                RootRouting.runHelper(appContext, RootRouting.ACTION_KEEP_ON_PHONE)
-                    .onFailure { Log.e(TAG, "Could not apply routing after boot", it) }
+                if (hubWasOn) {
+                    RootRouting.runHelper(appContext, HubControl.HELPER_HUB_RELEASE)
+                        .onFailure { Log.e(TAG, "Could not clean up after the hub", it) }
+                    HubControl.setWasOn(appContext, false)
+                }
+                if (keepOnPhone) {
+                    // Speaker mode is gone from the app: undo it instead of applying it again
+                    RootRouting.runHelper(appContext, RootRouting.ACTION_RELEASE)
+                        .onFailure { Log.e(TAG, "Could not undo Speaker mode", it) }
+                    RootRouting.setKeepOnPhoneEnabled(appContext, false)
+                }
             } finally {
                 pending.finish()
             }
